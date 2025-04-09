@@ -1,0 +1,13 @@
+bin
+target
+coverage
+node_modules
+.settings
+.metadata
+.sonarlint
+.vscode
+.classpath
+.project
+.angular
+dist
+
