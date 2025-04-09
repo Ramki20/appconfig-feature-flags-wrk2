@@ -38,11 +38,12 @@ pipeline {
                     
                     // Install required Python packages
 	                sh '''
-	                    echo "Checking Python installation..."
-	                    python3 --version
 	                    
 	                    # Install python3-full and python3-venv (if possible)
 	                    apt-get update -y && apt-get install -y python3-full python3-venv || true
+
+	                    echo "Checking Python installation..."
+	                    python3 --version
 	                    
 	                    # Create a virtual environment
 	                    echo "Creating virtual environment at ${VENV_PATH}"
