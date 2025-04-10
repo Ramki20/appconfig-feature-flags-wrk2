@@ -5,6 +5,7 @@ import argparse
 import os
 import logging
 import sys
+import datetime
 from botocore.exceptions import ClientError
 
 # Set up logging
@@ -149,6 +150,12 @@ def create_merged_config(github_config, aws_config, current_version):
     # If no AWS configuration exists, just use the GitHub config as-is
     if not aws_config:
         logger.info("No existing configuration found in AWS, using GitHub configuration as-is")
+        # Add empty metadata fields for new flags
+        for flag_name in github_config["values"]:
+            if isinstance(github_config["values"][flag_name], dict):
+                current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')[:-3]
+                github_config["values"][flag_name]["_createdAt"] = current_time
+                github_config["values"][flag_name]["_updatedAt"] = current_time
         return github_config
     
     # Start with a new configuration object with the flags defined in GitHub
@@ -172,10 +179,18 @@ def create_merged_config(github_config, aws_config, current_version):
             merged_config["values"][flag_name] = aws_config["values"][flag_name].copy()
             preserved_flags.append(flag_name)
         else:
-            # For new flags not in AWS AppConfig, use default values from GitHub
-            logger.info(f"Adding new flag with default values: {flag_name}")
+            # For new flags not in AWS AppConfig, use default values from GitHub and add metadata
+            logger.info(f"Adding new flag with default values and metadata: {flag_name}")
+            current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')[:-3]
             merged_config["values"][flag_name] = github_config["values"].get(flag_name, {"enabled": "false"}).copy()
-
+            
+            # Ensure the enabled value remains as a string to maintain consistency
+            if "enabled" in merged_config["values"][flag_name] and not isinstance(merged_config["values"][flag_name]["enabled"], str):
+                merged_config["values"][flag_name]["enabled"] = str(merged_config["values"][flag_name]["enabled"]).lower()
+                
+            # Add timestamp metadata for new flags
+            merged_config["values"][flag_name]["_createdAt"] = current_time
+            merged_config["values"][flag_name]["_updatedAt"] = current_time
 
     logger.info(f"merged_config-2: {merged_config}")
     

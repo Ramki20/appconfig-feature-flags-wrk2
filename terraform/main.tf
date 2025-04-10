@@ -15,11 +15,16 @@ locals {
     )
   }
   
-  # Process each file to ensure proper version field
+  # Process each file to ensure proper version field and consistent types
   fixed_contents = {
     for idx, path in local.config_content_paths : idx => {
       flags   = jsondecode(file(path)).flags
-      values  = jsondecode(file(path)).values
+      values  = {
+        for name, value in jsondecode(file(path)).values : name => {
+          # Preserve original format of enabled field and all other fields/metadata
+          for k, v in value : k => v
+        }
+      }
     }
   }
 }
@@ -124,15 +129,12 @@ resource "aws_appconfig_hosted_configuration_version" "feature_flags_version" {
     
   content_type             = "application/json"
     
-  # Use raw JSON format with direct interpolation and version as a string
-  content = <<-EOT
-{
-  "flags": ${jsonencode(local.fixed_contents[each.key].flags)},
-  "values": ${jsonencode(local.fixed_contents[each.key].values)},
-  "version": "1"
-}
-EOT
-
+  # Use raw JSON format with direct interpolation to preserve all metadata
+  content = jsonencode({
+    flags = local.fixed_contents[each.key].flags
+    values = local.fixed_contents[each.key].values
+    version = "1"
+  })
 }
 
 # Note: Deployment resource has been removed to allow deployment through Angular UI instead
