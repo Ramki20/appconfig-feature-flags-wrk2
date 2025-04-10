@@ -145,15 +145,26 @@ def get_current_appconfig(client, application_name, environment_name, profile_na
             logger.error(f"Error retrieving current configuration: {str(e)}")
             return None, None
 
+def compare_flag_values(old_value, new_value):
+    """
+    Compare flag values to determine if anything meaningful has changed,
+    ignoring metadata fields like _updatedAt
+    """
+    # Create copies without metadata fields for comparison
+    old_value_clean = {k: v for k, v in old_value.items() if not k.startswith('_')}
+    new_value_clean = {k: v for k, v in new_value.items() if not k.startswith('_')}
+    
+    return old_value_clean != new_value_clean
+
 def create_merged_config(github_config, aws_config, current_version):
     """Create a merged configuration that preserves all AWS AppConfig values and metadata"""
     # If no AWS configuration exists, just use the GitHub config as-is
     if not aws_config:
         logger.info("No existing configuration found in AWS, using GitHub configuration as-is")
         # Add empty metadata fields for new flags
+        current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')[:-3]
         for flag_name in github_config["values"]:
             if isinstance(github_config["values"][flag_name], dict):
-                current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')[:-3]
                 github_config["values"][flag_name]["_createdAt"] = current_time
                 github_config["values"][flag_name]["_updatedAt"] = current_time
         return github_config
@@ -164,20 +175,42 @@ def create_merged_config(github_config, aws_config, current_version):
         "values": {},
         "version": "1"  # AWS AppConfig Feature Flags requires version as a string
     }
-    logger.info(f"merged_config-1: {merged_config}")
     
     # Track changes for logging
     added_flags = set(github_config["flags"].keys()) - set(aws_config.get("flags", {}).keys())
     removed_flags = set(aws_config.get("flags", {}).keys()) - set(github_config["flags"].keys())
     preserved_flags = []
+    updated_flags = []
     
     # For each flag in GitHub (these are the flags we want to keep)
     for flag_name in github_config["flags"].keys():
         if flag_name in aws_config.get("values", {}):
-            # If flag exists in AWS AppConfig, preserve ALL its values and metadata
-            logger.info(f"Preserving existing values and metadata for flag: {flag_name}")
-            merged_config["values"][flag_name] = aws_config["values"][flag_name].copy()
-            preserved_flags.append(flag_name)
+            # Check if any non-metadata values have changed
+            github_flag_value = github_config["values"].get(flag_name, {"enabled": "false"})
+            aws_flag_value = aws_config["values"][flag_name]
+            
+            if compare_flag_values(aws_flag_value, github_flag_value):
+                # The flag has changed - update it with new values but preserve metadata
+                logger.info(f"Flag values have changed for: {flag_name}, updating but preserving metadata timestamps")
+                merged_config["values"][flag_name] = github_flag_value.copy()
+                
+                # Preserve creation timestamp
+                if "_createdAt" in aws_flag_value:
+                    merged_config["values"][flag_name]["_createdAt"] = aws_flag_value["_createdAt"]
+                else:
+                    current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')[:-3]
+                    merged_config["values"][flag_name]["_createdAt"] = current_time
+                
+                # Update the update timestamp
+                current_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')[:-3]
+                merged_config["values"][flag_name]["_updatedAt"] = current_time
+                
+                updated_flags.append(flag_name)
+            else:
+                # No changes - preserve ALL existing values and metadata
+                logger.info(f"No value changes for flag: {flag_name}, preserving all metadata including timestamps")
+                merged_config["values"][flag_name] = aws_flag_value.copy()
+                preserved_flags.append(flag_name)
         else:
             # For new flags not in AWS AppConfig, use default values from GitHub and add metadata
             logger.info(f"Adding new flag with default values and metadata: {flag_name}")
@@ -186,13 +219,15 @@ def create_merged_config(github_config, aws_config, current_version):
             
             # Ensure the enabled value remains as a string to maintain consistency
             if "enabled" in merged_config["values"][flag_name] and not isinstance(merged_config["values"][flag_name]["enabled"], str):
-                merged_config["values"][flag_name]["enabled"] = str(merged_config["values"][flag_name]["enabled"]).lower()
+                enabled_val = merged_config["values"][flag_name]["enabled"]
+                if isinstance(enabled_val, bool):
+                    merged_config["values"][flag_name]["enabled"] = str(enabled_val).lower()
+                else:
+                    merged_config["values"][flag_name]["enabled"] = str(enabled_val)
                 
             # Add timestamp metadata for new flags
             merged_config["values"][flag_name]["_createdAt"] = current_time
             merged_config["values"][flag_name]["_updatedAt"] = current_time
-
-    logger.info(f"merged_config-2: {merged_config}")
     
     # Copy any top-level metadata fields from AWS AppConfig
     for key in aws_config:
@@ -207,30 +242,11 @@ def create_merged_config(github_config, aws_config, current_version):
     if removed_flags:
         logger.info(f"Removing flags: {removed_flags}")
     
+    if updated_flags:
+        logger.info(f"Updating flag values but preserving metadata: {updated_flags}")
+    
     if preserved_flags:
-        logger.info(f"Preserving existing values for flags: {preserved_flags}")
-    
-    # Update the version field
-    logger.info(f"Configuration version updated from {current_version} to \"1\" (AWS requires version as a string value)")
-    
-    logger.info(f"merged_config-3: {merged_config}")
-    
-    # Perform a final validation check
-    if len(merged_config["flags"]) != len(merged_config["values"]):
-        logger.error(f"Configuration mismatch: {len(merged_config['flags'])} flags defined but {len(merged_config['values'])} value sets")
-        logger.error(f"Flags defined: {list(merged_config['flags'].keys())}")
-        logger.error(f"Values defined: {list(merged_config['values'].keys())}")
-        
-        # Find the differences
-        missing_values = set(merged_config["flags"].keys()) - set(merged_config["values"].keys())
-        extra_values = set(merged_config["values"].keys()) - set(merged_config["flags"].keys())
-        
-        if missing_values:
-            logger.error(f"Flags missing values: {missing_values}")
-        if extra_values:
-            logger.error(f"Values without flag definitions: {extra_values}")
-        
-        sys.exit(1)
+        logger.info(f"Preserving existing values and metadata for flags: {preserved_flags}")
     
     return merged_config
 

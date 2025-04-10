@@ -8,24 +8,16 @@ locals {
     }
   ]
   
-  # Determine which path to use based on merged file existence
+  # Always use merged path if it exists (contains preserved metadata)
   config_content_paths = {
     for idx, file in local.config_files : idx => (
       fileexists(file.merged_path) ? file.merged_path : file.path
     )
   }
   
-  # Process each file to ensure proper version field and consistent types
+  # Process without modifying the original content structure
   fixed_contents = {
-    for idx, path in local.config_content_paths : idx => {
-      flags   = jsondecode(file(path)).flags
-      values  = {
-        for name, value in jsondecode(file(path)).values : name => {
-          # Preserve original format of enabled field and all other fields/metadata
-          for k, v in value : k => v
-        }
-      }
-    }
+    for idx, path in local.config_content_paths : idx => jsondecode(file(path))
   }
 }
 
@@ -129,12 +121,8 @@ resource "aws_appconfig_hosted_configuration_version" "feature_flags_version" {
     
   content_type             = "application/json"
     
-  # Use raw JSON format with direct interpolation to preserve all metadata
-  content = jsonencode({
-    flags = local.fixed_contents[each.key].flags
-    values = local.fixed_contents[each.key].values
-    version = "1"
-  })
+  # Use jsonencode with exact content from the file to preserve all timestamps and metadata
+  content = file(local.config_content_paths[each.key])
 }
 
 # Note: Deployment resource has been removed to allow deployment through Angular UI instead
