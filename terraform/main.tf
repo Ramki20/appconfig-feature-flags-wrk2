@@ -113,17 +113,13 @@ resource "terraform_data" "debug_fixed_content" {
   }
 }
 
-resource "random_id" "version_id" {
-   byte_length = 4
-}  
-
 # Hosted Configuration Version for each configuration profile
 resource "aws_appconfig_hosted_configuration_version" "feature_flags_version" {
   for_each      = local.config_files
     
   application_id           = aws_appconfig_application.feature_flags_app[each.key].id
   configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
-  description              = "Feature flags version ${var.config_version} with ${random_id.version_id.hex}"
+  description              = "Feature flags version ${var.config_version}"
     
   content_type             = "application/json"
     
