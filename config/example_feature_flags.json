@@ -3,6 +3,9 @@
     "dbsa_servicing_navigation": {
       "name": "dbsa_servicing_navigation"
     },
+    "dbsa_servicing_navigation2": {
+      "name": "dbsa_servicing_navigation2"
+    },
     "home_page_direct_loan_button": {
       "name": "home_page_direct_loan_button"
     },
@@ -77,6 +80,9 @@
   },
   "values": {
     "dbsa_servicing_navigation": {
+      "enabled": true
+    },
+    "dbsa_servicing_navigation2": {
       "enabled": true
     },
     "home_page_direct_loan_button": {

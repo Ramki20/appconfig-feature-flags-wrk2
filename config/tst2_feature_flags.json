@@ -9,9 +9,6 @@
         "feedback" : {
             "name" : "feedback"
         },
-        "feedback2" : {
-            "name" : "feedback2"
-        },
         "google_analytics" : {
             "name" : "google_analytics"
         },
@@ -55,9 +52,6 @@
             "enabled" : "false"
         },
         "feedback" : {
-            "enabled" : "true"
-        },
-        "feedback2" : {
             "enabled" : "true"
         },
         "google_analytics" : {
