@@ -1,0 +1,38 @@
+{
+  "flags": {
+    "dbsa_servicing": {
+      "name": "dbsa_servicing"
+    },
+	"dbsa_servicing_2": {
+	  "name": "dbsa_servicing_2"
+	},
+    "valid_ids": {
+      "name": "valid_ids",
+      "attributes": {
+        "allowed_ids": {
+          "constraints": {
+            "type": "array",
+            "required": true
+          }
+        }
+      }
+    }
+  },
+  "values": {
+    "dbsa_servicing": {
+      "enabled": true
+    },
+	"dbsa_servicing_2": {
+	  "enabled": true
+	},
+    "valid_ids": {
+      "enabled": true,
+      "allowed_ids": [
+        "28200310169021026877",
+        "28200310169021000430",
+        "28200407069030925009"
+      ]
+    }
+  },
+  "version": "1"
+}
