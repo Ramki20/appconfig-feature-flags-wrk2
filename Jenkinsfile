@@ -120,12 +120,6 @@ pipeline {
 		    }
 		}
         
-		stage('Terraform Force Unlock') {
-		  steps {
-		    sh 'terraform force-unlock 1a43d757-4b1e-75df-f8e4-84e40991a05e'
-		  }
-		}        
-        
         stage('Initialize Terraform') {
             steps {
                 dir('terraform') {
