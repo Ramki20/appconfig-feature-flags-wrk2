@@ -21,6 +21,9 @@
         "loan_purpose2" : {
             "name" : "loan_purpose2"
         },
+        "loan_purpose3" : {
+            "name" : "loan_purpose3"
+        },
         "farm_operating_plan" : {
             "name" : "farm_operating_plan"
         },
@@ -67,6 +70,9 @@
             "enabled" : "true"
         },
         "loan_purpose2" : {
+            "enabled" : "true"
+        },
+        "loan_purpose3" : {
             "enabled" : "true"
         },
         "farm_operating_plan" : {
