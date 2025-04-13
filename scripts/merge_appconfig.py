@@ -308,6 +308,8 @@ def main():
     else:
         output_path = f"{args.config_file}.merged.json"
     
+    logger.info(f"Determined output_path: {output_path}")
+    
     # Check if the file has actually changed
     if check_if_file_changed(output_path, merged_config):
         logger.info("Writing updated merged configuration")
