@@ -229,6 +229,8 @@ def check_if_file_changed(output_path, merged_config):
         with open(output_path, 'r') as f:
             existing_content = json.load(f)
             
+        logger.info(f"Found existing_content: {existing_content}")
+        
         # Compare only the structure (flags and their attributes)
         # without comparing values or metadata
         existing_flags = set(existing_content.get("flags", {}).keys())
