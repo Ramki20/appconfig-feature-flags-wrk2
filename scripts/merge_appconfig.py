@@ -149,6 +149,9 @@ def has_configuration_changed(current_config, new_config):
     # Remove metadata fields for comparison
     current_without_metadata = remove_metadata_fields(current_config)
     new_without_metadata = remove_metadata_fields(new_config)
+    logger.error(f"current_without_metadata: {current_without_metadata}")
+    logger.error(f"new_without_metadata: {new_without_metadata}")
+   
     return current_without_metadata != new_without_metadata
 
 def remove_metadata_fields(config):
