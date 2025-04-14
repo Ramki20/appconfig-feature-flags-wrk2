@@ -128,28 +128,6 @@ pipeline {
             }
         }
         
-        stage('Import Existing Resources') {
-            steps {
-                dir('terraform') {
-                    script {
-                        // This stage helps synchronize Terraform state with existing AWS resources
-                        // It can be removed once state is fully synchronized
-                        echo "Attempting to import existing resources into Terraform state..."
-                        
-                        sh '''
-                            # Try to import existing resources, ignore errors if they don't exist
-                            terraform import 'aws_appconfig_application.feature_flags_app["0"]' i3v21si || echo "Import failed or resource doesn't exist"
-                            terraform import 'aws_appconfig_configuration_profile.feature_flags_profile["0"]' tjl3tr6:i3v21si || echo "Import failed or resource doesn't exist"
-                            terraform import 'aws_appconfig_environment.feature_flags_env["0"]' 8qt5plf:i3v21si || echo "Import failed or resource doesn't exist"
-                            terraform import 'aws_appconfig_deployment_strategy.quick_deployment' 3sflhh5 || echo "Import failed or resource doesn't exist"
-                        '''
-                        
-                        echo "Import attempts completed."
-                    }
-                }
-            }
-        }
-        
         stage('Process Config Files') {
             steps {
                 script {
