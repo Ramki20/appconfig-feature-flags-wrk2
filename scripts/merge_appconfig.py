@@ -156,10 +156,20 @@ def has_configuration_changed(current_config, new_config):
 
 def remove_metadata_fields(config):
     cleaned_config = copy.deepcopy(config)
-    for flag_values in cleaned_config.get('values', {}).values():
-        flag_values.pop('_updatedAt', None)
-        flag_values.pop('_createdAt', None)
-    return cleaned_config
+    
+    # Clean metadata from flags section
+    if 'flags' in cleaned_config:
+        for flag in cleaned_config['flags'].values():
+            flag.pop('_updatedAt', None)
+            flag.pop('_createdAt', None)
+    
+    # Clean metadata from values section
+    if 'values' in cleaned_config:
+        for flag_values in cleaned_config['values'].values():
+            flag_values.pop('_updatedAt', None)
+            flag_values.pop('_createdAt', None)
+    
+    return cleaned_config    
 
 def create_merged_config(github_config, aws_config, current_version):
     """Create a merged configuration that preserves all AWS AppConfig values and metadata"""
