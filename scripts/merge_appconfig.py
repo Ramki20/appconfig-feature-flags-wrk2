@@ -144,6 +144,19 @@ def get_current_appconfig(client, application_name, environment_name, profile_na
             logger.error(f"Error retrieving current configuration: {str(e)}")
             return None, None
 
+def has_configuration_changed(current_config, new_config):
+    # Remove metadata fields for comparison
+    current_without_metadata = remove_metadata_fields(current_config)
+    new_without_metadata = remove_metadata_fields(new_config)
+    return current_without_metadata != new_without_metadata
+
+def remove_metadata_fields(config):
+    cleaned_config = copy.deepcopy(config)
+    for flag_values in cleaned_config.get('values', {}).values():
+        flag_values.pop('_updatedAt', None)
+        flag_values.pop('_createdAt', None)
+    return cleaned_config
+
 def create_merged_config(github_config, aws_config, current_version):
     """Create a merged configuration that preserves all AWS AppConfig values and metadata"""
     # If no AWS configuration exists, just use the GitHub config as-is
@@ -299,6 +312,11 @@ def main():
     if not aws_config and not args.force_create:
         logger.error("No existing configuration found in AWS AppConfig and --force-create not specified")
         logger.error("Exiting without making changes")
+        sys.exit(1)
+        
+    # Check for actual changes
+    if not has_configuration_changed(github_config, aws_config):
+        logger.info(f"No changes detected for {config_file}")
         sys.exit(1)
     
     # Create the merged configuration
