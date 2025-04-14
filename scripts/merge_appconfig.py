@@ -179,6 +179,7 @@ def create_merged_config(github_config, aws_config, current_version):
         return github_config
     
     if not has_configuration_changed(github_config, aws_config):
+        logger.info(f"No changes detected between github_config and aws_config")
         return aws_config
         
     #merged_config = copy.deepcopy(aws_config)    
