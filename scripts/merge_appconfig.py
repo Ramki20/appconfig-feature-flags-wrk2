@@ -178,6 +178,11 @@ def create_merged_config(github_config, aws_config, current_version):
         logger.info("No existing configuration found in AWS, using GitHub configuration as-is")
         return github_config
     
+   if not has_configuration_changed(github_config, aws_config):
+        return aws_config
+        
+    //merged_config = copy.deepcopy(aws_config)    
+    
     # Start with a new configuration object with the flags defined in GitHub
     merged_config = {
         "flags": github_config["flags"].copy(),
@@ -326,11 +331,6 @@ def main():
     if not aws_config and not args.force_create:
         logger.error("No existing configuration found in AWS AppConfig and --force-create not specified")
         logger.error("Exiting without making changes")
-        sys.exit(1)
-        
-    # Check for actual changes
-    if not has_configuration_changed(github_config, aws_config):
-        logger.info(f"No changes detected for {args.config_file}")
         sys.exit(1)
     
     # Create the merged configuration
