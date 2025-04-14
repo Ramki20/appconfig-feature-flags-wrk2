@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import boto3
+import copy
 import argparse
 import os
 import logging
