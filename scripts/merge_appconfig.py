@@ -337,6 +337,11 @@ def main():
     # Create the merged configuration
     merged_config = create_merged_config(github_config, aws_config, current_version or "0")
     
+    # If configs are identical, exit successfully without writing
+    if aws_config and not has_configuration_changed(merged_config, aws_config):
+        logger.info("No changes detected. Skipping configuration update.")
+        sys.exit(0)    
+    
     # Determine the output file path
     if args.output_file:
         output_path = args.output_file
