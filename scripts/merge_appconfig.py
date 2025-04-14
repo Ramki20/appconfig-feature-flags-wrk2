@@ -330,7 +330,7 @@ def main():
         
     # Check for actual changes
     if not has_configuration_changed(github_config, aws_config):
-        logger.info(f"No changes detected for {config_file}")
+        logger.info(f"No changes detected for {args.config_file}")
         sys.exit(1)
     
     # Create the merged configuration
