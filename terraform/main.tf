@@ -84,6 +84,18 @@ resource "aws_appconfig_configuration_profile" "feature_flags_profile" {
   }
 }
 
+# Data source to fetch existing configuration profiles
+data "aws_appconfig_configuration_profile" "existing" {
+  for_each = local.config_files
+
+  application_id           = aws_appconfig_application.feature_flags_app[each.key].id
+  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
+
+  depends_on = [
+    aws_appconfig_configuration_profile.feature_flags_profile
+  ]
+}
+
 # Comprehensive debug for fixed content including attributes and metadata
 resource "terraform_data" "debug_fixed_content" {
   for_each = local.fixed_contents
@@ -113,9 +125,27 @@ resource "terraform_data" "debug_fixed_content" {
   }
 }
 
+# Second locals block for comparison logic
+locals {
+  # Create content hashes for comparison
+  config_content_hashes = {
+    for name, content in local.fixed_contents : name => sha256(jsonencode({
+      flags = content.flags
+      values = content.values
+      version = "1"
+    }))
+  }
+
+  # Only include configs that have changed
+  changed_configs = {
+    for name, file in local.config_files : name => file
+    if try(data.aws_appconfig_configuration_profile.existing[name].content_hash, "") != local.config_content_hashes[name]
+  }
+}
+
 # Hosted Configuration Version for each configuration profile
 resource "aws_appconfig_hosted_configuration_version" "feature_flags_version" {
-  for_each      = local.config_files
+  for_each      = local.changed_configs
     
   application_id           = aws_appconfig_application.feature_flags_app[each.key].id
   configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
