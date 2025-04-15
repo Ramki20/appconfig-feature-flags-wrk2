@@ -84,39 +84,6 @@ resource "aws_appconfig_configuration_profile" "feature_flags_profile" {
   }
 }
 
-# Data source to fetch existing configuration profiles
-data "aws_appconfig_configuration_profile" "existing" {
-  for_each = local.config_files
-
-  application_id           = aws_appconfig_application.feature_flags_app[each.key].id
-  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
-
-  depends_on = [
-    aws_appconfig_configuration_profile.feature_flags_profile
-  ]
-}
-
-# Add a debug output to see all available attributes
-output "profile_debug" {
-  value = {
-    for name, profile in data.aws_appconfig_configuration_profile.existing : name => profile
-  }
-  description = "Debug output to see available attributes"
-}
-
-# Output for configuration profiles
-output "config_profile_details" {
-  value = {
-    for name, profile in data.aws_appconfig_configuration_profile.existing : name => {
-      application_id = profile.application_id
-      profile_id = profile.configuration_profile_id
-      name = profile.name
-      type = profile.type
-    }
-  }
-  description = "Details of each configuration profile including IDs and names"
-}
-
 # Comprehensive debug for fixed content including attributes and metadata
 resource "terraform_data" "debug_fixed_content" {
   for_each = local.fixed_contents
@@ -146,52 +113,9 @@ resource "terraform_data" "debug_fixed_content" {
   }
 }
 
-# Second locals block for comparison logic
-locals {
-  # Create content hashes for comparison
-  config_content_hashes = {
-    for name, content in local.fixed_contents : name => sha256(jsonencode({
-      flags = content.flags
-      values = content.values
-      version = "1"
-    }))
-  }
-
-  # Include all configs for initial deployment
-  changed_configs = {
-    for name, file in local.config_files : name => file
-  }  
-}
-
-# Add these debug outputs
-output "content_hashes" {
-  value = local.config_content_hashes
-  description = "SHA256 hashes of the new configurations"
-}
-
-output "changed_configs" {
-  value = keys(local.changed_configs)
-  description = "List of configuration names that will be updated"
-}
-
-# Modified comparison output
-output "config_comparison" {
-  value = {
-    for name, file in local.config_files : name => {
-      profile_name = data.aws_appconfig_configuration_profile.existing[name].name
-      profile_id = data.aws_appconfig_configuration_profile.existing[name].configuration_profile_id
-      application_id = data.aws_appconfig_configuration_profile.existing[name].application_id
-      location_uri = data.aws_appconfig_configuration_profile.existing[name].location_uri
-      new_hash = local.config_content_hashes[name]
-      will_update = contains(keys(local.changed_configs), name)
-    }
-  }
-  description = "Configuration comparison"
-}
-
 # Hosted Configuration Version for each configuration profile
 resource "aws_appconfig_hosted_configuration_version" "feature_flags_version" {
-  for_each      = local.changed_configs
+  for_each      = local.config_files
     
   application_id           = aws_appconfig_application.feature_flags_app[each.key].id
   configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
