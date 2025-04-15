@@ -104,14 +104,17 @@ output "profile_debug" {
   description = "Debug output to see available attributes"
 }
 
-# Add a debug output to see the version numbers
-output "latest_version_numbers" {
+# Output for configuration profiles
+output "config_profile_details" {
   value = {
     for name, profile in data.aws_appconfig_configuration_profile.existing : name => {
-      latest_version = profile.version_number
+      application_id = profile.application_id
+      profile_id = profile.configuration_profile_id
+      name = profile.name
+      type = profile.type
     }
   }
-  description = "Latest version number for each configuration profile"
+  description = "Details of each configuration profile including IDs and names"
 }
 
 # Comprehensive debug for fixed content including attributes and metadata
@@ -154,11 +157,9 @@ locals {
     }))
   }
 
-  # Only include configs that have changed
+  # Include all configs for initial deployment
   changed_configs = {
     for name, file in local.config_files : name => file
-    if data.aws_appconfig_configuration_profile.existing[name].version_number == null || 
-       data.aws_appconfig_configuration_profile.existing[name].version_number == "0"
   }  
 }
 
@@ -173,15 +174,19 @@ output "changed_configs" {
   description = "List of configuration names that will be updated"
 }
 
+# Modified comparison output
 output "config_comparison" {
   value = {
     for name, file in local.config_files : name => {
+      profile_name = data.aws_appconfig_configuration_profile.existing[name].name
+      profile_id = data.aws_appconfig_configuration_profile.existing[name].configuration_profile_id
+      application_id = data.aws_appconfig_configuration_profile.existing[name].application_id
+      location_uri = data.aws_appconfig_configuration_profile.existing[name].location_uri
       new_hash = local.config_content_hashes[name]
-      latest_version = try(data.aws_appconfig_configuration_profile.existing[name].latest_version_number, "0")
       will_update = contains(keys(local.changed_configs), name)
     }
   }
-  description = "Configuration version comparison"
+  description = "Configuration comparison"
 }
 
 # Hosted Configuration Version for each configuration profile
