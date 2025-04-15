@@ -84,57 +84,6 @@ resource "aws_appconfig_configuration_profile" "feature_flags_profile" {
   }
 }
 
-# First get the list of all configuration versions
-data "aws_appconfig_hosted_configuration_versions" "all" {
-  for_each = local.config_files
-
-  application_id           = aws_appconfig_application.feature_flags_app[each.key].id
-  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
-
-  depends_on = [
-    aws_appconfig_configuration_profile.feature_flags_profile
-  ]
-}
-
-# Then get the latest version using the version number from the list
-data "aws_appconfig_configuration_version" "latest" {
-  for_each = local.config_files
-
-  application_id           = aws_appconfig_application.feature_flags_app[each.key].id
-  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
-  version_number          = try(
-    max([
-      for version in data.aws_appconfig_hosted_configuration_versions.all[each.key].hosted_configuration_versions : 
-      tonumber(version.version_number)
-    ]),
-    "1"  # Default to version 1 if no versions exist
-  )
-
-  depends_on = [
-    aws_appconfig_configuration_profile.feature_flags_profile,
-    data.aws_appconfig_hosted_configuration_versions.all
-  ]
-}
-
-# Add a debug output to see the version numbers
-output "latest_version_numbers" {
-  value = {
-    for name, versions in data.aws_appconfig_hosted_configuration_versions.all : name => {
-      all_versions = [
-        for version in versions.hosted_configuration_versions : version.version_number
-      ]
-      latest_version = try(
-        max([
-          for version in versions.hosted_configuration_versions : 
-          tonumber(version.version_number)
-        ]),
-        "1"
-      )
-    }
-  }
-  description = "All version numbers and the latest version for each configuration"
-}
-
 # Data source to fetch existing configuration profiles
 data "aws_appconfig_configuration_profile" "existing" {
   for_each = local.config_files
@@ -145,6 +94,30 @@ data "aws_appconfig_configuration_profile" "existing" {
   depends_on = [
     aws_appconfig_configuration_profile.feature_flags_profile
   ]
+}
+
+# Get the latest version configuration
+data "aws_appconfig_configuration_version" "latest" {
+  for_each = local.config_files
+
+  application_id           = aws_appconfig_application.feature_flags_app[each.key].id
+  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
+  version_number          = data.aws_appconfig_configuration_profile.existing[each.key].latest_version_number
+
+  depends_on = [
+    aws_appconfig_configuration_profile.feature_flags_profile,
+    data.aws_appconfig_configuration_profile.existing
+  ]
+}
+
+# Add a debug output to see the version numbers
+output "latest_version_numbers" {
+  value = {
+    for name, profile in data.aws_appconfig_configuration_profile.existing : name => {
+      latest_version = profile.latest_version_number
+    }
+  }
+  description = "Latest version number for each configuration profile"
 }
 
 # Comprehensive debug for fixed content including attributes and metadata
