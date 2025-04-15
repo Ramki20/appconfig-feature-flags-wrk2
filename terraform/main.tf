@@ -84,6 +84,57 @@ resource "aws_appconfig_configuration_profile" "feature_flags_profile" {
   }
 }
 
+# First get the list of all configuration versions
+data "aws_appconfig_hosted_configuration_versions" "all" {
+  for_each = local.config_files
+
+  application_id           = aws_appconfig_application.feature_flags_app[each.key].id
+  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
+
+  depends_on = [
+    aws_appconfig_configuration_profile.feature_flags_profile
+  ]
+}
+
+# Then get the latest version using the version number from the list
+data "aws_appconfig_configuration_version" "latest" {
+  for_each = local.config_files
+
+  application_id           = aws_appconfig_application.feature_flags_app[each.key].id
+  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
+  version_number          = try(
+    max([
+      for version in data.aws_appconfig_hosted_configuration_versions.all[each.key].hosted_configuration_versions : 
+      tonumber(version.version_number)
+    ]),
+    "1"  # Default to version 1 if no versions exist
+  )
+
+  depends_on = [
+    aws_appconfig_configuration_profile.feature_flags_profile,
+    data.aws_appconfig_hosted_configuration_versions.all
+  ]
+}
+
+# Add a debug output to see the version numbers
+output "latest_version_numbers" {
+  value = {
+    for name, versions in data.aws_appconfig_hosted_configuration_versions.all : name => {
+      all_versions = [
+        for version in versions.hosted_configuration_versions : version.version_number
+      ]
+      latest_version = try(
+        max([
+          for version in versions.hosted_configuration_versions : 
+          tonumber(version.version_number)
+        ]),
+        "1"
+      )
+    }
+  }
+  description = "All version numbers and the latest version for each configuration"
+}
+
 # Data source to fetch existing configuration profiles
 data "aws_appconfig_configuration_profile" "existing" {
   for_each = local.config_files
@@ -139,7 +190,7 @@ locals {
   # Only include configs that have changed
   changed_configs = {
     for name, file in local.config_files : name => file
-    if try(data.aws_appconfig_configuration_profile.existing[name].content_hash, "") != local.config_content_hashes[name]
+    if try(sha256(data.aws_appconfig_configuration_version.latest[name].content), "") != local.config_content_hashes[name]
   }
 }
 
@@ -149,9 +200,10 @@ output "content_hashes" {
   description = "SHA256 hashes of the new configurations"
 }
 
+# Modify the existing_content_hashes output
 output "existing_content_hashes" {
   value = {
-    for name, profile in data.aws_appconfig_configuration_profile.existing : name => profile.content_hash
+    for name, version in data.aws_appconfig_configuration_version.latest : name => sha256(version.content)
   }
   description = "Content hashes of existing configurations in AWS AppConfig"
 }
@@ -166,8 +218,8 @@ output "config_comparison" {
   value = {
     for name, file in local.config_files : name => {
       new_hash = local.config_content_hashes[name]
-      existing_hash = try(data.aws_appconfig_configuration_profile.existing[name].content_hash, "")
-      will_update = contains(keys(local.changed_configs), name)
+      existing_hash = try(sha256(data.aws_appconfig_configuration_version.latest[name].content), "")
+      will_update = contains(keys(local.changed_configs), name)      
     }
   }
   description = "Detailed comparison of new and existing configuration hashes"
