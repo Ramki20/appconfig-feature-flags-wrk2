@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import json
 import boto3
-import copy
 import argparse
 import os
 import logging
@@ -145,44 +144,12 @@ def get_current_appconfig(client, application_name, environment_name, profile_na
             logger.error(f"Error retrieving current configuration: {str(e)}")
             return None, None
 
-def has_configuration_changed(current_config, new_config):
-    # Remove metadata fields for comparison
-    current_without_metadata = remove_metadata_fields(current_config)
-    new_without_metadata = remove_metadata_fields(new_config)
-    logger.info(f"current_without_metadata: {current_without_metadata}")
-    logger.info(f"new_without_metadata: {new_without_metadata}")
-   
-    return current_without_metadata != new_without_metadata
-
-def remove_metadata_fields(config):
-    cleaned_config = copy.deepcopy(config)
-    
-    # Clean metadata from flags section
-    if 'flags' in cleaned_config:
-        for flag in cleaned_config['flags'].values():
-            flag.pop('_updatedAt', None)
-            flag.pop('_createdAt', None)
-    
-    # Clean metadata from values section
-    if 'values' in cleaned_config:
-        for flag_values in cleaned_config['values'].values():
-            flag_values.pop('_updatedAt', None)
-            flag_values.pop('_createdAt', None)
-    
-    return cleaned_config    
-
 def create_merged_config(github_config, aws_config, current_version):
     """Create a merged configuration that preserves all AWS AppConfig values and metadata"""
     # If no AWS configuration exists, just use the GitHub config as-is
     if not aws_config:
         logger.info("No existing configuration found in AWS, using GitHub configuration as-is")
         return github_config
-    
-    if not has_configuration_changed(github_config, aws_config):
-        logger.info(f"No changes detected between github_config and aws_config")
-        return aws_config
-        
-    #merged_config = copy.deepcopy(aws_config)    
     
     # Start with a new configuration object with the flags defined in GitHub
     merged_config = {
@@ -336,11 +303,6 @@ def main():
     
     # Create the merged configuration
     merged_config = create_merged_config(github_config, aws_config, current_version or "0")
-    
-    # If configs are identical, exit successfully without writing
-    if aws_config and not has_configuration_changed(merged_config, aws_config):
-        logger.info("No changes detected. Skipping configuration update.")
-        sys.exit(0)    
     
     # Determine the output file path
     if args.output_file:
