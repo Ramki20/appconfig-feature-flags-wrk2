@@ -96,20 +96,6 @@ data "aws_appconfig_configuration_profile" "existing" {
   ]
 }
 
-# Get the latest version configuration
-data "aws_appconfig_configuration_version" "latest" {
-  for_each = local.config_files
-
-  application_id           = aws_appconfig_application.feature_flags_app[each.key].id
-  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags_profile[each.key].configuration_profile_id
-  version_number          = data.aws_appconfig_configuration_profile.existing[each.key].latest_version_number
-
-  depends_on = [
-    aws_appconfig_configuration_profile.feature_flags_profile,
-    data.aws_appconfig_configuration_profile.existing
-  ]
-}
-
 # Add a debug output to see the version numbers
 output "latest_version_numbers" {
   value = {
@@ -163,8 +149,9 @@ locals {
   # Only include configs that have changed
   changed_configs = {
     for name, file in local.config_files : name => file
-    if try(sha256(data.aws_appconfig_configuration_version.latest[name].content), "") != local.config_content_hashes[name]
-  }
+    if data.aws_appconfig_configuration_profile.existing[name].latest_version_number == null || 
+       data.aws_appconfig_configuration_profile.existing[name].latest_version_number == "0"
+  }  
 }
 
 # Add these debug outputs
@@ -173,29 +160,20 @@ output "content_hashes" {
   description = "SHA256 hashes of the new configurations"
 }
 
-# Modify the existing_content_hashes output
-output "existing_content_hashes" {
-  value = {
-    for name, version in data.aws_appconfig_configuration_version.latest : name => sha256(version.content)
-  }
-  description = "Content hashes of existing configurations in AWS AppConfig"
-}
-
 output "changed_configs" {
   value = keys(local.changed_configs)
   description = "List of configuration names that will be updated"
 }
 
-# Optional: Add this to see the full comparison
 output "config_comparison" {
   value = {
     for name, file in local.config_files : name => {
       new_hash = local.config_content_hashes[name]
-      existing_hash = try(sha256(data.aws_appconfig_configuration_version.latest[name].content), "")
-      will_update = contains(keys(local.changed_configs), name)      
+      latest_version = try(data.aws_appconfig_configuration_profile.existing[name].latest_version_number, "0")
+      will_update = contains(keys(local.changed_configs), name)
     }
   }
-  description = "Detailed comparison of new and existing configuration hashes"
+  description = "Configuration version comparison"
 }
 
 # Hosted Configuration Version for each configuration profile
