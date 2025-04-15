@@ -96,6 +96,14 @@ data "aws_appconfig_configuration_profile" "existing" {
   ]
 }
 
+# Add a debug output to see all available attributes
+output "profile_debug" {
+  value = {
+    for name, profile in data.aws_appconfig_configuration_profile.existing : name => profile
+  }
+  description = "Debug output to see available attributes"
+}
+
 # Add a debug output to see the version numbers
 output "latest_version_numbers" {
   value = {
