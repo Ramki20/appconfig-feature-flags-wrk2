@@ -146,16 +146,31 @@ locals {
 # Add these debug outputs
 output "content_hashes" {
   value = local.config_content_hashes
+  description = "SHA256 hashes of the new configurations"
 }
 
 output "existing_content_hashes" {
   value = {
     for name, profile in data.aws_appconfig_configuration_profile.existing : name => profile.content_hash
   }
+  description = "Content hashes of existing configurations in AWS AppConfig"
 }
 
 output "changed_configs" {
   value = keys(local.changed_configs)
+  description = "List of configuration names that will be updated"
+}
+
+# Optional: Add this to see the full comparison
+output "config_comparison" {
+  value = {
+    for name, file in local.config_files : name => {
+      new_hash = local.config_content_hashes[name]
+      existing_hash = try(data.aws_appconfig_configuration_profile.existing[name].content_hash, "")
+      will_update = contains(keys(local.changed_configs), name)
+    }
+  }
+  description = "Detailed comparison of new and existing configuration hashes"
 }
 
 # Hosted Configuration Version for each configuration profile
