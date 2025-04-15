@@ -143,6 +143,21 @@ locals {
   }
 }
 
+# Add these debug outputs
+output "content_hashes" {
+  value = local.config_content_hashes
+}
+
+output "existing_content_hashes" {
+  value = {
+    for name, profile in data.aws_appconfig_configuration_profile.existing : name => profile.content_hash
+  }
+}
+
+output "changed_configs" {
+  value = keys(local.changed_configs)
+}
+
 # Hosted Configuration Version for each configuration profile
 resource "aws_appconfig_hosted_configuration_version" "feature_flags_version" {
   for_each      = local.changed_configs
