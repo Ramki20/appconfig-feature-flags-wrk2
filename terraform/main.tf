@@ -100,7 +100,7 @@ data "aws_appconfig_configuration_profile" "existing" {
 output "latest_version_numbers" {
   value = {
     for name, profile in data.aws_appconfig_configuration_profile.existing : name => {
-      latest_version = profile.latest_version_number
+      latest_version = profile.version_number
     }
   }
   description = "Latest version number for each configuration profile"
@@ -149,8 +149,8 @@ locals {
   # Only include configs that have changed
   changed_configs = {
     for name, file in local.config_files : name => file
-    if data.aws_appconfig_configuration_profile.existing[name].latest_version_number == null || 
-       data.aws_appconfig_configuration_profile.existing[name].latest_version_number == "0"
+    if data.aws_appconfig_configuration_profile.existing[name].version_number == null || 
+       data.aws_appconfig_configuration_profile.existing[name].version_number == "0"
   }  
 }
 
